@@ -1,7 +1,9 @@
 import kopf
+import subprocess
 
 print("running")
 
-@kopf.on.create('kopfexamples')
-def create_fn(spec, name, meta, status, **kwargs):
-    print(f"And here we are! Created {name} with spec: {spec}")
+@kopf.on.create('bigbang')
+def install_flux(spec, name, meta, status, **kwargs):
+    print("bigbang resources created! installing flux")
+    subprocess.run(["kubectl", "apply", "-f", "https://github.com/fluxcd/flux2/releases/latest/download/install.yaml"])
