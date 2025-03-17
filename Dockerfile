@@ -10,7 +10,8 @@ RUN curl -s https://fluxcd.io/install.sh | bash
 # helm
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && chmod 700 get_helm.sh && ./get_helm.sh
 # bbctl
-RUN curl -Ls https://repo1.dso.mil/big-bang/apps/developer-tools/bbctl/-/releases/1.0.0/downloads/bbctl-1.0.0-linux-arm64.tar.gz | tar -xz && mv bbctl /usr/bin/bbctl
+RUN curl -Ls https://repo1.dso.mil/big-bang/apps/developer-tools/bbctl/-/releases/1.0.0/downloads/bbctl-1.0.0-linux-arm64.tar.gz | tar -xz && mv bbctl /usr/bin/bbctl-arm
+RUN curl -Ls https://repo1.dso.mil/big-bang/apps/developer-tools/bbctl/-/releases/1.0.0/downloads/bbctl-1.0.0-linux-x86-64.tar.gz | tar -xz && mv bbctl /usr/bin/bbctl
 # bbctl runtime setup
 RUN git clone https://repo1.dso.mil/big-bang/bigbang.git /root/repos/bigbang
 

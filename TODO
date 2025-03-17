@@ -2,3 +2,5 @@ persist gitea access token across restarts of the operator pod
 checks to see if stuff exists when deployed (idempotency)
 gitea in a unique namespace (or delete and recreate?)
 bigbang-operator in its own namespace
+arm64 kubectl (or just do stuff in python)
+checkout a particular bb release tag retrieved configmap etc if provided otherwise use latest

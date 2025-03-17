@@ -14,7 +14,7 @@ def main():
     install_flux()
     bootstrap_token = install_gitea()
     flux_bootstrap(bootstrap_token)
-    # need something like if secret exists then use it to flux_bootstrap otherwise continue? or maybe we need to make sure gitea is removed each time we are initing - prolly better
+    # need something like if secret exists then use it to flux_bootstrap otherwise continue? also cant remove gitea obvi
     # subprocess.run(["kubectl", "create", "secret", "generic", "--from-literal", f"bootstrap-token={bootstrap_token}", "-n", f"{BIGBANG_OPERATOR_NAMESPACE}", "bootstrap-token"])
     
 def install_flux():
@@ -66,9 +66,24 @@ def install_bigbang(spec, name, meta, status, **kwargs):
     # running resources | running applications in namespaces | cluster load | available cloud resources | cluster type
 
     # the information can then be used to either optimize the bigbang install, be opinionated about resource settings, handle upgrades etc. very powerful.
-    subprocess.run(["bbctl", "preflight-check"])
 
-    subprocess.run(["bbctl", "deploy", "bigbang"])
+    # example:
+    node_name = subprocess.check_output(["kubectl", "get", "pod", "-l", "app=operate", "-o", "jsonpath='{.items[0].spec.nodeName}'"]).decode('utf-8').strip("'")
+    node_data = subprocess.check_output(["kubectl", "describe", "node", f"{node_name}"]).decode('utf-8')
+    for line in node_data.split('\n'):
+        if "Architecture" in line:
+            if 'amd64' in line:
+                arch = 'amd64'
+            if 'arm64' in line:
+                arch = 'arm64'
+    if arch not in locals():
+        raise Exception("unknown architecture")
 
+    if arch == 'arm64':
+        subprocess.run(["bbctl-arm64", "preflight-check"])
+        subprocess.run(["bbctl-arm64", "deploy", "bigbang"])
+    if arch == 'amd64':
+        subprocess.run(["bbctl", "preflight-check"])
+        subprocess.run(["bbctl", "deploy", "bigbang"])
 
 main()
