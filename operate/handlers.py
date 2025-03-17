@@ -5,23 +5,53 @@ from requests.auth import HTTPBasicAuth
 import json
 import yaml
 
+def bootstrap():
+    print("bootstrapping")
+    subprocess.run(["flux", "install"])    
+    bootstrap_token = install_gitea()
+    flux_bootstrap(bootstrap_token)
+    # install bigbang
+    subprocess.run([f"{BBCTL_BINARY}", "deploy", "bigbang"]) 
 
-print("running")
+print("=========================")
+print("--- Big Bang Operator ---")
+print("=========================")
+
 GITEA_NAMESPACE = "default"
 BIGBANG_OPERATOR_NAMESPACE="default"
 
-def main():
-    install_flux()
-    bootstrap_token = install_gitea()
-    flux_bootstrap(bootstrap_token)
-    # need something like if secret exists then use it to flux_bootstrap otherwise continue? also cant remove gitea obvi
-    # subprocess.run(["kubectl", "create", "secret", "generic", "--from-literal", f"bootstrap-token={bootstrap_token}", "-n", f"{BIGBANG_OPERATOR_NAMESPACE}", "bootstrap-token"])
-    
-def install_flux():
-    subprocess.run(["flux", "install"])
+# running resources | running applications in namespaces | cluster load | available cloud resources | cluster type
+# the information can then be used to either optimize the bigbang install, be opinionated about resource settings, handle upgrades etc. very powerful.
+
+# example:
+node_name = subprocess.check_output(["kubectl", "get", "pod", "-l", "app=operate", "-o", "jsonpath='{.items[0].spec.nodeName}'"]).decode('utf-8').strip("'")
+node_data = subprocess.check_output(["kubectl", "describe", "node", f"{node_name}"]).decode('utf-8')
+for line in node_data.split('\n'):
+    if "Architecture" in line:
+        if 'amd64' in line:
+            arch = 'amd64'
+            bbctl_binary ='bbctl'
+        if 'arm64' in line:
+            arch = 'arm64'
+            bbctl_binary ='bbctl-arm64'
+if 'arch' not in locals():
+    raise Exception("unknown architecture")
+
+ARCHITECUTRE = arch
+BBCTL_BINARY = bbctl_binary
+print(f"Architecture: {ARCHITECUTRE}")
+print(f"BBCTL_BINARY: {BBCTL_BINARY}")
+
+# check if bb is already installed
+status = subprocess.check_output([f"{BBCTL_BINARY}", "status"])
+if 'No Big Bang release was found.' in status.decode('utf-8'):
+    print("bigbang not installed")
+    bootstrap()
+else:
+    print("bigbang already installed")   
 
 def install_gitea():
-    
+    print("installing gitea")
     subprocess.run(["helm", "repo", "add", "gitea-charts", "https://dl.gitea.com/charts/"])
     subprocess.run(["helm", "install", "-n", f"{GITEA_NAMESPACE}", "gitea", "gitea-charts/gitea", "-f", "/src/operate/gitea/values.yaml", "--wait"])
     gitea_svc_endpoint = f"http://gitea-http.{GITEA_NAMESPACE}.svc.cluster.local:3000"
@@ -59,31 +89,15 @@ def install_gitea():
 def flux_bootstrap(bootstrap_token: str):
     subprocess.run(["flux", "bootstrap", "git", "--url", f"http://gitea-http.{GITEA_NAMESPACE}.svc.cluster.local:3000/admin/flux.git", "--username=admin", f"--password={bootstrap_token}", "--allow-insecure-http=true", "--token-auth=true", "--branch=main"])    
 
+
+# for now these just run status commands on create and update of BigBang resource
 @kopf.on.create('bigbang')
-def install_bigbang(spec, name, meta, status, **kwargs):
-    print("[INFO] BigBang resources created! running bbctl")
-    # we can do tons of stuff here and above in the deployment for example we can grab all sorts of information like:
-    # running resources | running applications in namespaces | cluster load | available cloud resources | cluster type
+def create_bigbang(spec, name, meta, status, **kwargs):
+    
+    subprocess.run([f"{BBCTL_BINARY}", "status"])
 
-    # the information can then be used to either optimize the bigbang install, be opinionated about resource settings, handle upgrades etc. very powerful.
+@kopf.on.update('bigbang')
+def upgrade_bigbang(spec, name, meta, status, **kwargs):
 
-    # example:
-    node_name = subprocess.check_output(["kubectl", "get", "pod", "-l", "app=operate", "-o", "jsonpath='{.items[0].spec.nodeName}'"]).decode('utf-8').strip("'")
-    node_data = subprocess.check_output(["kubectl", "describe", "node", f"{node_name}"]).decode('utf-8')
-    for line in node_data.split('\n'):
-        if "Architecture" in line:
-            if 'amd64' in line:
-                arch = 'amd64'
-            if 'arm64' in line:
-                arch = 'arm64'
-    if arch not in locals():
-        raise Exception("unknown architecture")
+    subprocess.run([f"{BBCTL_BINARY}", "status"])
 
-    if arch == 'arm64':
-        subprocess.run(["bbctl-arm64", "preflight-check"])
-        subprocess.run(["bbctl-arm64", "deploy", "bigbang"])
-    if arch == 'amd64':
-        subprocess.run(["bbctl", "preflight-check"])
-        subprocess.run(["bbctl", "deploy", "bigbang"])
-
-main()

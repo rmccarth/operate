@@ -197,7 +197,7 @@ spec:
       serviceAccountName: bigbang-account
       containers:
       - name: operate 
-        image: rmccarth/operate:latest
+        image: rmccarth/bigbang-operator:latest
         resources:
           requests:
             memory: "100Mi"
