@@ -9,6 +9,8 @@ readme = "README.md"
 python = "^3.8"
 kopf = "^1.37.4"
 async-timeout = "^5.0.1"
+requests = "^2.32.3"
+pyyaml = "^6.0.2"
 
 
 [build-system]

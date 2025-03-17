@@ -1,0 +1,5 @@
+gitea:
+  admin:
+    username: "admin"
+    password: "adminpassword"
+    email: "admin@example.com"

@@ -163,6 +163,21 @@ subjects:
     name: bigbang-account
     namespace: default
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bbctl-config
+  namespace: default
+data:
+  config.yaml: |
+    bbctl-log-format: text
+    bbctl-log-level: info
+    bbctl-log-output: stdout
+    bbctl-version: 1.0.0
+    big-bang-credential-helper: credentials-file
+    big-bang-credential-helper-credentials-file-path: /root/.bbctl/credentials.yaml
+    big-bang-repo: /root/repos/bigbang
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -183,18 +198,19 @@ spec:
       containers:
       - name: operate 
         image: rmccarth/operate:latest
----
-apiVersion: simple.deployment/v1
-kind: BigBang 
-metadata:
-  name: bigbang 
-  labels:
-    somelabel: somevalue
-  annotations:
-    someannotation: somevalue
-spec:
-  duration: 1m
-  field: value
-  items:
-  - item1
-  - item2
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "250m"
+        volumeMounts:
+        - name: bbctl-configuration
+          mountPath: /root/.bbctl
+      volumes:
+      - name: bbctl-configuration
+        projected:
+          sources:
+          - secret:
+              name: bbctl-credentials
+          - configMap:
+              name: bbctl-config
+
