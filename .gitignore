@@ -1,2 +1,2 @@
 deploy/secrets/**
-operate/__pycache__/**
+**/__pycache__/**
