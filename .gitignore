@@ -1,2 +1,3 @@
 deploy/secrets/**
 **/__pycache__/**
+**/k3d_dev_run_*/**

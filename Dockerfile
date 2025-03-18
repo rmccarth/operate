@@ -1,6 +1,8 @@
 FROM python:3.12
 COPY . /src
 
+ENV PYTHONUNBUFFERED=1
+
 # kopf
 RUN pip install kopf requests 
 # kubectl
@@ -14,7 +16,8 @@ RUN curl -Ls https://repo1.dso.mil/big-bang/apps/developer-tools/bbctl/-/release
 RUN curl -Ls https://repo1.dso.mil/big-bang/apps/developer-tools/bbctl/-/releases/1.0.0/downloads/bbctl-1.0.0-linux-x86-64.tar.gz | tar -xz && mv bbctl /usr/bin/bbctl
 # bbctl runtime setup
 RUN git clone https://repo1.dso.mil/big-bang/bigbang.git /root/repos/bigbang
-# we have cluster admin so just need the file to exist for bbctl
-RUN mkdir -p ~/.kube && touch ~/.kube/config
+# we have cluster admin so just need the file to exist for bbctl - however this tricks the kopf framework so need a different solution
+RUN mkdir -p /root/.kube 
+#&& touch ~/.kube/config
 
 ENTRYPOINT ["kopf", "run", "/src/operate/handlers.py", "--verbose"]

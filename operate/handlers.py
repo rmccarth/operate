@@ -2,55 +2,10 @@ import kopf
 import subprocess
 import requests
 from requests.auth import HTTPBasicAuth
-import json
-import yaml
+from pathlib import Path
+import time
 
-def bootstrap():
-    print("bootstrapping")
-    subprocess.run(["flux", "install"])    
-    bootstrap_token = install_gitea()
-    flux_bootstrap(bootstrap_token)
-    # install bigbang
-    subprocess.run([f"{BBCTL_BINARY}", "deploy", "bigbang"]) 
-
-print("=========================")
-print("--- Big Bang Operator ---")
-print("=========================")
-
-GITEA_NAMESPACE = "default"
-BIGBANG_OPERATOR_NAMESPACE="default"
-
-# running resources | running applications in namespaces | cluster load | available cloud resources | cluster type
-# the information can then be used to either optimize the bigbang install, be opinionated about resource settings, handle upgrades etc. very powerful.
-
-# example:
-node_name = subprocess.check_output(["kubectl", "get", "pod", "-l", "app=operate", "-o", "jsonpath='{.items[0].spec.nodeName}'"]).decode('utf-8').strip("'")
-node_data = subprocess.check_output(["kubectl", "describe", "node", f"{node_name}"]).decode('utf-8')
-for line in node_data.split('\n'):
-    if "Architecture" in line:
-        if 'amd64' in line:
-            arch = 'amd64'
-            bbctl_binary ='bbctl'
-        if 'arm64' in line:
-            arch = 'arm64'
-            bbctl_binary ='bbctl-arm64'
-if 'arch' not in locals():
-    raise Exception("unknown architecture")
-
-ARCHITECUTRE = arch
-BBCTL_BINARY = bbctl_binary
-print(f"Architecture: {ARCHITECUTRE}")
-print(f"BBCTL_BINARY: {BBCTL_BINARY}")
-
-# check if bb is already installed
-status = subprocess.check_output([f"{BBCTL_BINARY}", "status"])
-if 'No Big Bang release was found.' in status.decode('utf-8'):
-    print("bigbang not installed")
-    bootstrap()
-else:
-    print("bigbang already installed")   
-
-def install_gitea():
+def install_gitea(GITEA_NAMESPACE: str):
     print("installing gitea")
     subprocess.run(["helm", "repo", "add", "gitea-charts", "https://dl.gitea.com/charts/"])
     subprocess.run(["helm", "install", "-n", f"{GITEA_NAMESPACE}", "gitea", "gitea-charts/gitea", "-f", "/src/operate/gitea/values.yaml", "--wait"])
@@ -86,18 +41,70 @@ def install_gitea():
 
     return bootstrap_token
 
-def flux_bootstrap(bootstrap_token: str):
+def flux_bootstrap(bootstrap_token: str, GITEA_NAMESPACE: str):
     subprocess.run(["flux", "bootstrap", "git", "--url", f"http://gitea-http.{GITEA_NAMESPACE}.svc.cluster.local:3000/admin/flux.git", "--username=admin", f"--password={bootstrap_token}", "--allow-insecure-http=true", "--token-auth=true", "--branch=main"])    
 
 
 # for now these just run status commands on create and update of BigBang resource
 @kopf.on.create('bigbang')
 def create_bigbang(spec, name, meta, status, **kwargs):
-    
-    subprocess.run([f"{BBCTL_BINARY}", "status"])
+    subprocess.run(["bbctl", "status"])
+    # subprocess.run([f"{BBCTL_BINARY}", "status"])
 
 @kopf.on.update('bigbang')
 def upgrade_bigbang(spec, name, meta, status, **kwargs):
+    subprocess.run(["bbctl", "status"])
+    # subprocess.run([f"{BBCTL_BINARY}", "status"])
 
-    subprocess.run([f"{BBCTL_BINARY}", "status"])
+def bigbang_bootstrap(GITEA_NAMESPACE: str, BBCTL_BINARY: str):
+    print("bootstrapping")
+    subprocess.run(["flux", "install"])    
+    bootstrap_token = install_gitea(GITEA_NAMESPACE)
+    flux_bootstrap(bootstrap_token, GITEA_NAMESPACE)
+    # install bigbang
+    subprocess.run([f"{BBCTL_BINARY}", "deploy", "bigbang"]) 
 
+def main():
+    time.sleep(15)
+    print("=========================")
+    print("--- Big Bang Operator ---")
+    print("=========================")
+
+    GITEA_NAMESPACE = "default"
+    BIGBANG_OPERATOR_NAMESPACE="default"
+
+    # create dummy kubeconfig for bbctl to be happy
+    Path('/root/.kube/config').touch()
+
+    # running resources | running applications in namespaces | cluster load | available cloud resources | cluster type
+    # the information can then be used to either optimize the bigbang install, be opinionated about resource settings, handle upgrades etc. very powerful.
+
+    # example:
+    node_name = subprocess.check_output(["kubectl", "get", "pod", "-l", "app=bigbang-operator", "-o", "jsonpath='{.items[0].spec.nodeName}'"]).decode('utf-8').strip("'")
+    node_data = subprocess.check_output(["kubectl", "describe", "node", f"{node_name}"]).decode('utf-8')
+    for line in node_data.split('\n'):
+        if "Architecture" in line:
+            if 'amd64' in line:
+                arch = 'amd64'
+                bbctl_binary ='bbctl'
+            if 'arm64' in line:
+                arch = 'arm64'
+                bbctl_binary ='bbctl-arm64'
+    if 'arch' not in locals():
+        raise Exception("unknown architecture")
+
+    ARCHITECUTRE = arch
+    BBCTL_BINARY = bbctl_binary
+    print(f"Architecture: {ARCHITECUTRE}")
+    print(f"BBCTL_BINARY: {BBCTL_BINARY}")
+
+
+    # check if bb is already installed
+    status = subprocess.check_output([f"{BBCTL_BINARY}", "status"])
+    if 'No Big Bang release was found.' in status.decode('utf-8'):
+        print("bigbang not installed")
+        bigbang_bootstrap(GITEA_NAMESPACE, BBCTL_BINARY)
+    else:
+        print("bigbang already installed")   
+
+main()

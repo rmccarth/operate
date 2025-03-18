@@ -181,23 +181,24 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: operate 
+  name: bigbang-operator 
   labels:
-    app: operate 
+    app: bigbang-operator 
 spec:
   replicas: 1 
   selector:
     matchLabels:
-      app: operate
+      app: bigbang-operator
   template:
     metadata:
       labels:
-        app: operate
+        app: bigbang-operator
     spec:
       serviceAccountName: bigbang-account
       containers:
-      - name: operate 
-        image: rmccarth/bigbang-operator:latest
+      - name: bigbang-operator 
+        image: rmccarth/bigbang-operator:0.0.23
+        imagePullPolicy: Always
         resources:
           requests:
             memory: "100Mi"
